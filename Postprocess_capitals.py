@@ -1,18 +1,80 @@
 import numpy as np
+import stl
 from stl import mesh
 from mpl_toolkits import mplot3d
 from matplotlib import pyplot
+import math
 
-FILENAME = "Lot0952_50tri.obj"
-MESHFILENAME = "Lot0952_50tri_mesh.stl"
+CAPITALNUM = "0952"
+FILENAME = "../Data/Lot" + CAPITALNUM + "_10000tri.obj"
+MESHFILENAME = "../Data/Lot" + CAPITALNUM + "_10000tri_mesh.stl"
 SKIPLINES = 8
+
+
+
+def get_capital_dimensions(vertices): #,capital_mesh):
+    minx = maxx = miny = maxy = minz = maxz = None
+
+    vertex_min = np.amin(vertices_np, axis=0) #[minx, miny, minz]
+    vertex_max = np.amax(vertices_np, axis=0) #[maxx, maxy, maxz]
+
+    return {"minx": vertex_min[0], "maxx": vertex_max[0], "miny": vertex_min[1], "maxy": vertex_max[1], "minz": vertex_min[2], "maxz": vertex_max[2]}
+
+    '''for p in capital_mesh.points:
+        # p contains (x, y, z)
+        if minx is None:
+            minx = p[stl.Dimension.X]
+            maxx = p[stl.Dimension.X]
+            miny = p[stl.Dimension.Y]
+            maxy = p[stl.Dimension.Y]
+            minz = p[stl.Dimension.Z]
+            maxz = p[stl.Dimension.Z]
+        else:
+            maxx = max(p[stl.Dimension.X], maxx)
+            minx = min(p[stl.Dimension.X], minx)
+            maxy = max(p[stl.Dimension.Y], maxy)
+            miny = min(p[stl.Dimension.Y], miny)
+            maxz = max(p[stl.Dimension.Z], maxz)
+            minz = min(p[stl.Dimension.Z], minz)
+    '''
+    #return {"minx": minx, "maxx": maxx, "miny": miny, "maxy": maxy, "minz": minz, "maxz": maxz}
+
+
+#rotate so capital is lying on its top in the x-y plane at z=0
+#rotate around z-axis through z centroid
+def rotate_capital_onto_top(capital_mesh, dims):
+	#z_center = dims["maxz"] - dims["minz"]
+	#z_axis = [0.0, 0.0, 100] #WHY 100?
+	#theta = math.radians(180)
+	#transformation_matrix = np.array([[1,0,0,0],[0, math.cos(theta), -math.sin(theta), 0],[0, math.sin(theta), math.cos(theta), 0],[0,0,0,1]])
+	Lot0952_transform_matrix = np.array([[1,0,0,0],[0, math.cos(math.radians(180)), -math.sin(math.radians(180)), 0],[0, math.sin(math.radians(180)), math.cos(math.radians(180)), 0],[0,0,0,1]])
+	capital_on_top = capital_mesh.transform(Lot0952_transform_matrix)
+	#capital_mesh.rotate(z_axis, math.radians(90))
+
+def create_plot(capital_mesh):
+	# Create a new plot
+	figure = pyplot.figure()
+	axes = mplot3d.Axes3D(figure)
+	# Load the STL files and add the vectors to the plot
+	axes.add_collection3d(mplot3d.art3d.Poly3DCollection(capital_mesh.vectors))
+	# Auto scale to the mesh size
+	scale = capital_mesh.points.flatten(-1)
+	axes.auto_scale_xyz(scale, scale, scale)
+	# Show the plot to the screen
+	pyplot.show()
+
+#def cut_slice(vertices, faces):
+	#slice = meshcut.cross_section(vertices, faces, plane_orig=(1.2, -0.125, 0), plane_normal=(1, 0, 0))
+
+def get_capital_properties(capital_mesh):
+	volume, cog, inertia = capital_mesh.get_mass_properties()
+	print "volume " + str(volume)
+	print "cog " + str(cog)
+	print "inertia " + str(inertia)
 
 
 vertices = [] #expect v 1 2 3
 faces = [] #expect f 1 2 3
-minmax_x = {"min": float('inf'), "max":  -float('inf')}
-minmax_y = {"min": float('inf'), "max":  -float('inf')}
-minmax_z = {"min": float('inf'), "max":  -float('inf')}
 lineNum = 0
 for line in open(FILENAME):
 	if lineNum < SKIPLINES:
@@ -25,12 +87,6 @@ for line in open(FILENAME):
 	if data[0] == 'v':
 		data_vals = [float(d) for d in data[1:]]
 		vertices.append(data_vals) #should append a vector of ints representing vertex indices
-		if data_vals[0] > minmax_x["max"]: minmax_x["max"] = data_vals[0]
-		if data_vals[0] < minmax_x["min"]: minmax_x["min"] = data_vals[0]
-		if data_vals[1] > minmax_y["max"]: minmax_y["max"] = data_vals[1]
-		if data_vals[1] < minmax_y["min"]: minmax_y["min"] = data_vals[1]
-		if data_vals[2] > minmax_z["max"]: minmax_z["max"] = data_vals[2]
-		if data_vals[2] < minmax_z["min"]: minmax_z["min"] = data_vals[2]
 
 	elif data[0] == 'f':
 		faces.append([int(i) for i in data[1:]]) #should append a vector
@@ -50,41 +106,9 @@ for i, f in enumerate(faces_np):
 # Write the mesh to file
 capital_mesh.save(MESHFILENAME)
 #print capital_mesh.normals
+dims = get_capital_dimensions(capital_mesh)
+rotate_capital_onto_top(capital_mesh, dims)
 
-# Create a new plot
-figure = pyplot.figure()
-axes = mplot3d.Axes3D(figure)
-# Load the STL files and add the vectors to the plot
-axes.add_collection3d(mplot3d.art3d.Poly3DCollection(capital_mesh.vectors))
-# Auto scale to the mesh size
-scale = capital_mesh.points.flatten(-1)
-axes.auto_scale_xyz(scale, scale, scale)
-# Show the plot to the screen
-pyplot.show()
+#create_plot(capital_mesh)
+get_capital_properties(capital_mesh)
 
-
-
-
-
-
-'''print type(minmax_x["max"])
-print minmax_x
-
-#Find rough object size to determine sides
-half_x = (minmax_x["max"] - minmax_x["min"]) / 2.0
-half_y = (minmax_y["max"] - minmax_y["min"]) / 2.0
-half_z = (minmax_z["max"] - minmax_z["min"]) / 2.0
-
-total_normal = 0
-
-#find surface normals:
-for f in faces:
-	#for each triangle, find its surface normal vector with the cross vector of its vertices
-	f_vertices = [vertices_np[f[0]-1], vertices_np[f[1]-1], vertices_np[f[2]]-1] #account for 0-indexing
-	#size of normal is function of face's area -- don't normalize bc this tells us how significant this piece is in the capital's geometry
-	f_normal = np.cross(f_vertices[i+1]-f_vertices[i], f_vertices[i+2]-f_vertices[i])
-	total_normal += f_normal
-print "TOTAL NORMAL:" + str(total_normal)
-	#build a bounding box?
-	#determine id point is inside or outside mesh?
-'''
