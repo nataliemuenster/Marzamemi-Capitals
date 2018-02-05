@@ -20,71 +20,54 @@ def get_capital_dimensions(vertices): #,capital_mesh):
     volume, cog, inertia = capital_mesh.get_mass_properties()
     return {"volume": volume, "cog": cog, "intertia": inertia, "minx": vertex_min[0], "maxx": vertex_max[0], "miny": vertex_min[1], "maxy": vertex_max[1], "minz": vertex_min[2], "maxz": vertex_max[2]}
 
-    '''for p in capital_mesh.points:
-        # p contains (x, y, z)
-        if minx is None:
-            minx = p[stl.Dimension.X]
-            maxx = p[stl.Dimension.X]
-            miny = p[stl.Dimension.Y]
-            maxy = p[stl.Dimension.Y]
-            minz = p[stl.Dimension.Z]
-            maxz = p[stl.Dimension.Z]
-        else:
-            maxx = max(p[stl.Dimension.X], maxx)
-            minx = min(p[stl.Dimension.X], minx)
-            maxy = max(p[stl.Dimension.Y], maxy)
-            miny = min(p[stl.Dimension.Y], miny)
-            maxz = max(p[stl.Dimension.Z], maxz)
-            minz = min(p[stl.Dimension.Z], minz)
-    '''
-    #return {"minx": minx, "maxx": maxx, "miny": miny, "maxy": maxy, "minz": minz, "maxz": maxz}
-
-
 def compute_transform_matrix(top_normal):
     # From http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q38
+
     destination_axis = np.array([0,0,-1]) #want top to face down, so the normal aligns with the -z axis
-    
-    '''v = np.cross(top_normal, destination_axis)
-    s = np.linalg.norm(v)
-    c = np.dot(top_normal, destination_axis)
-    if c == -1: return np.eye(3)
+    if top_normal[0] == 0.0 and top_normal[1] == 0.0 and top_normal[2] == 1.0: 
+        R = np.array([[-1,0,0],[0,1,0],[0,0,-1]]) #only happen when z angle is 180? or other angles?????????????????
+    else:
 
-    v_x = np.array([
-        [0, -v[2], v[1]],
-        [v[2], 0, -v[0]],
-        [-v[1], v[0], 0]
-        ])
-    
-    R = np.eye(3) + v_x + v_x*v_x * (1/(1+c))
+        '''v = np.cross(top_normal, destination_axis)
+        s = np.linalg.norm(v)
+        c = np.dot(top_normal, destination_axis)
+        if c == -1: return np.eye(3)
 
-    print str(R)
-    return R'''
+        v_x = np.array([
+            [0, -v[2], v[1]],
+            [v[2], 0, -v[0]],
+            [-v[1], v[0], 0]
+            ])
+        
+        R = np.eye(3) + v_x + v_x*v_x * (1/(1+c))
 
-    uvw = np.cross(top_normal, destination_axis) #get axis -- IS THIS THE RIGHT ORDER??
+        print str(R)
+        return R'''
 
-    rcos = np.dot(top_normal, destination_axis)
-    rsin = np.linalg.norm(uvw)
+        uvw = np.cross(top_normal, destination_axis) #get axis -- IS THIS THE RIGHT ORDER??
 
-    if not np.isclose(rsin, 0):# and uvw != 0: #normalize axis
-        uvw /= rsin
-    u, v, w = uvw
+        rcos = np.dot(top_normal, destination_axis)
+        rsin = np.linalg.norm(uvw)
 
-    R = (
-        rcos * np.eye(3) +
-        rsin * np.array([
-            [ 0, -w,  v],
-            [ w,  0, -u],
-            [-v,  u,  0]
-        ]) +
-        (1.0 - rcos) * uvw[:,None] * uvw[None,:]
-    )
-    print "R: " + str(R)
+        if not np.isclose(rsin, 0):# and uvw != 0: #normalize axis
+            uvw /= rsin
+        u, v, w = uvw
+
+        R = (
+            rcos * np.eye(3) +
+            rsin * np.array([
+                [ 0, -w,  v],
+                [ w,  0, -u],
+                [-v,  u,  0]
+            ]) +
+            (1.0 - rcos) * uvw[:,None] * uvw[None,:]
+        )
+    #print "R: " + str(R)
     return R
-    
 
 #rotate so capital is lying on its top in the x-y plane at z=0
 #rotate around z-axis through z centroid
-def rotate_capital_onto_top(capital_mesh, dims):
+def transform_capital_onto_top(capital_mesh, dims):
     #identify top plane using bounding box dimensions -- the top/bottom face is likely the one with the most equivalent length/width ratio
     top_face = None
     #diff_x = math.fabs(dims['maxx'] - dims['minx'])
@@ -118,18 +101,24 @@ def rotate_capital_onto_top(capital_mesh, dims):
     top_normal /= np.linalg.norm(top_normal)
     if np.dot(points_mid - dims["cog"], top_normal) < 0: #center of gravity here should really be centroid, but they should be similar for these objects
         top_normal *= -1
-    print top_normal
-    if top_normal[0] == 0.0 and top_normal[1] == 0.0 and top_normal[2] == 1.0: 
-        transform_matrix = [[-1,0,0],[0,1,0],[0,0,-1]] #only happen when z angle is 180? or other angles?????????????????
-    else:
-        transform_matrix = compute_transform_matrix(top_normal)
+    #print top_normal
+    transform_matrix = compute_transform_matrix(top_normal)
     #transform_matrix = capital_mesh.rotation_matrix([0,1,0], math.radians(180))
+    transform_matrix_r = np.vstack((transform_matrix, [0,0,0]))
+    transform_matrix_t = np.hstack((transform_matrix_r, [[0],[0],[0],[1]]))
+    print str(transform_matrix_t)
+    capital_mesh.transform(transform_matrix_t)
     
-    transform_matrix = np.vstack((transform_matrix, [0,0,0]))
-    transform_matrix = np.hstack((transform_matrix, [[0],[0],[0],[1]]))
+    numFaces = capital_mesh.points.shape[0]
+    #print "POINT: " + str(capital_mesh.points[0:2].reshape((2,3,3)))
+    #print "POINT_z: " + str(np.amin(capital_mesh.points[0:2].reshape((2,3,3)), axis=(0,1))[2])
+    move_z = np.amin(capital_mesh.points.reshape((numFaces,3,3)), axis=(0,1))[2] #get the min z; each row contains the 3 3D points
+    print move_z
+    translation = np.array([[0],[0],[0-move_z],[1]])
+    transform_matrix = np.vstack((np.eye(3), [0,0,0]))
+    transform_matrix = np.hstack((transform_matrix, translation))
     print str(transform_matrix)
     capital_mesh.transform(transform_matrix)
-
     
     #transform_matrix = np.array([[1,0,0,0],[0, math.cos(math.radians(180)), -math.sin(math.radians(180)), 0],[0, math.sin(math.radians(180)), math.cos(math.radians(180)), 0],[0,0,0,1]])
 
@@ -174,7 +163,7 @@ if lineNum <= 1:
 
 vertices_np = np.array(vertices)
 faces_np = np.array(faces)
-
+print "THIRD VERTEX!: " + str(vertices_np[3])
 '''Make use of numpy-stl mesh library'''
 #create the mesh
 capital_mesh = mesh.Mesh(np.zeros(faces_np.shape[0], dtype=mesh.Mesh.dtype))
@@ -187,7 +176,7 @@ capital_mesh.save(MESHFILENAME)
 print "cap mesh 3: " + str(capital_mesh[3])
 #print capital_mesh.normals
 dims = get_capital_dimensions(capital_mesh)
-rotate_capital_onto_top(capital_mesh, dims)
+transform_capital_onto_top(capital_mesh, dims)
 
 create_plot(capital_mesh)
 
