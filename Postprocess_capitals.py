@@ -5,13 +5,10 @@ from mpl_toolkits import mplot3d
 from matplotlib import pyplot
 import math
 
-CAPITALNUM = "0262"
-FILENAME = "../Data/Lot" + CAPITALNUM + "_10000tri.obj"
-MESHFILENAME = "../Data/Lot" + CAPITALNUM + "_10000tri_mesh.stl"
 SKIPLINES = 8
 
 
-def get_capital_dimensions(vertices): #,capital_mesh):
+def get_capital_dimensions(vertices_np, capital_mesh):
     minx = maxx = miny = maxy = minz = maxz = None
 
     vertex_min = np.amin(vertices_np, axis=0) #[minx, miny, minz]
@@ -90,7 +87,7 @@ def determine_top(capital_mesh, dims):
 
 #rotate so capital is lying on its top in the x-y plane at z=0
 #rotate around z-axis through z centroid
-def transform_capital_onto_top(capital_mesh, dims):
+def transform_capital_onto_top(capitalNum, capital_mesh, dims):
     #identify top plane using bounding box dimensions -- the top/bottom face is likely the one with the most equivalent length/width ratio
     #top_face = None
     #diff_x = math.fabs(dims['maxx'] - dims['minx'])
@@ -123,23 +120,23 @@ def transform_capital_onto_top(capital_mesh, dims):
                         [dims["maxx"],dims["maxy"],dims["minz"]],
                         [dims["maxx"],dims["maxy"],dims["maxz"]]])
       
-    if CAPITALNUM == "0262":
+    if capitalNum == "0262":
         #find surface normal of top plane: upper top face is on XY plane -- all surface points are at max z
         top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
         points_mid = np.array((face_pts[5] + face_pts[1] + face_pts[7]) / 3.0)
-    elif CAPITALNUM == "0952":
+    elif capitalNum == "0952":
         #find surface normal of top plane: upper top face is on XY plane -- all surface points are at max z
         top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
         points_mid = np.array((face_pts[5] + face_pts[1] + face_pts[7]) / 3.0)
-    elif CAPITALNUM == "0953":
+    elif capitalNum == "0953":
         #find surface normal of top plane: upper top face is on XZ plane, all surface points are at min x
         top_normal = np.cross(face_pts[0] - face_pts[1], face_pts[0] - face_pts[2])
         points_mid = np.array((face_pts[2] + face_pts[1] + face_pts[0]) / 3.0)
-    elif CAPITALNUM == "0955":
+    elif capitalNum == "0955":
         #find surface normal of top plane: upper top face is on XY plane -- all surface points are at max z
         top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
         points_mid = np.array((face_pts[5] + face_pts[1] + face_pts[7]) / 3.0)
-    #if CAPITALNUM == "2281":
+    #if capitalNum == "2281":
         #find surface normal of top plane: upper top face is on XZ plane -- all surface points are at max x???
         #top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
         #points_mid = np.array((face_pts[5] + face_pts[1] + face_pts[7]) / 3.0)
@@ -186,44 +183,46 @@ def create_plot(capital_mesh):
 
 
 
+def processCapital(capitalNum):
+    filename = "../Data/Lot" + capitalNum + "_10000tri.obj"
+    meshfilename = "../Data/Lot" + capitalNum + "_10000tri_mesh.stl"
+    vertices = [] #expect v 1 2 3
+    faces = [] #expect f 1 2 3
+    lineNum = 0
+    for line in open(filename): #does this work??
+        if lineNum < SKIPLINES:
+            lineNum += 1
+            continue
+        data = line.rstrip('\n').split()
+        #print data
+        if len(data) <= 0: 
+            continue
+        if data[0] == 'v':
+            data_vals = [float(d) for d in data[1:]]
+            vertices.append(data_vals) #should append a vector of ints representing vertex indices
 
+        elif data[0] == 'f':
+            faces.append([int(i) for i in data[1:]]) #should append a vector
+    if lineNum <= 1:
+        print "Error, missing elements in file."
+        quit()
 
-vertices = [] #expect v 1 2 3
-faces = [] #expect f 1 2 3
-lineNum = 0
-for line in open(FILENAME):
-    if lineNum < SKIPLINES:
-        lineNum += 1
-        continue
-    data = line.rstrip('\n').split()
-    #print data
-    if len(data) <= 0: 
-        continue
-    if data[0] == 'v':
-        data_vals = [float(d) for d in data[1:]]
-        vertices.append(data_vals) #should append a vector of ints representing vertex indices
+    vertices_np = np.array(vertices)
+    faces_np = np.array(faces)
+    #print "THIRD VERTEX!: " + str(vertices_np[3])
+    '''Make use of numpy-stl mesh library'''
+    #create the mesh
+    capital_mesh = mesh.Mesh(np.zeros(faces_np.shape[0], dtype=mesh.Mesh.dtype))
 
-    elif data[0] == 'f':
-        faces.append([int(i) for i in data[1:]]) #should append a vector
-if lineNum <= 1:
-    print "Error, missing elements in file."
-    quit()
-
-vertices_np = np.array(vertices)
-faces_np = np.array(faces)
-#print "THIRD VERTEX!: " + str(vertices_np[3])
-'''Make use of numpy-stl mesh library'''
-#create the mesh
-capital_mesh = mesh.Mesh(np.zeros(faces_np.shape[0], dtype=mesh.Mesh.dtype))
-
-for i, f in enumerate(faces_np):
-    for j in range(3):
-        capital_mesh.vectors[i][j] = vertices_np[f[j]-1,:]
-# Write the mesh to file
-#print "cap mesh 3: " + str(capital_mesh[3])
-#print capital_mesh.normals
-dims = get_capital_dimensions(capital_mesh)
-create_plot(capital_mesh)
-transform_capital_onto_top(capital_mesh, dims)
-capital_mesh.save(MESHFILENAME) #save transformed version
-create_plot(capital_mesh)
+    for i, f in enumerate(faces_np):
+        for j in range(3):
+            capital_mesh.vectors[i][j] = vertices_np[f[j]-1,:]
+    # Write the mesh to file
+    #print "cap mesh 3: " + str(capital_mesh[3])
+    #print capital_mesh.normals
+    dims = get_capital_dimensions(vertices_np, capital_mesh)
+    #create_plot(capital_mesh)
+    transform_capital_onto_top(capitalNum, capital_mesh, dims)
+    capital_mesh.save(meshfilename) #save transformed version
+    #create_plot(capital_mesh)
+    return {"volume": dims['volume']}   
