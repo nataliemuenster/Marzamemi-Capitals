@@ -5,11 +5,10 @@ from mpl_toolkits import mplot3d
 from matplotlib import pyplot
 import math
 
-CAPITALNUM = "0952"
+CAPITALNUM = "0262"
 FILENAME = "../Data/Lot" + CAPITALNUM + "_10000tri.obj"
 MESHFILENAME = "../Data/Lot" + CAPITALNUM + "_10000tri_mesh.stl"
 SKIPLINES = 8
-
 
 
 def get_capital_dimensions(vertices): #,capital_mesh):
@@ -65,11 +64,35 @@ def compute_transform_matrix(top_normal):
     #print "R: " + str(R)
     return R
 
+'''def calculate_num_points_on_line(captital_mesh, endpt1, endpt2):
+    numPoints = 12
+    numInside = 0
+    interval = (endpt-endpt) / numPoints #find each point to check
+    for i in xrange(numPoints):
+        if endpt1 + (i*diff) #isInside:
+            numInside += 1
+
+
+def determine_top(capital_mesh, dims):
+    top_face = None
+    numPointsOnLine = [0,0,0,0,0,0] #XY1, XY2, XZ1, XZ2, YZ1, YZ2
+
+    numPointsOnLine[0] 
+
+
+    corners = [[dims['minx'], dims['maxx']], [dims['miny'], dims['maxy']], [dims['minz'], dims['maxz']]] #3x2 list for x,y,z
+    for i in xrange(len(numPointsOnLine)):
+        interval = corners[i/2][2] - corners[i/2][1]
+         /12.0 #arbitrary number, sufficiently large to identify top face
+        numPointsOnLine[i]
+'''
+
+
 #rotate so capital is lying on its top in the x-y plane at z=0
 #rotate around z-axis through z centroid
 def transform_capital_onto_top(capital_mesh, dims):
     #identify top plane using bounding box dimensions -- the top/bottom face is likely the one with the most equivalent length/width ratio
-    top_face = None
+    #top_face = None
     #diff_x = math.fabs(dims['maxx'] - dims['minx'])
     #diff_y = math.fabs(dims['miny'] - dims['maxy'])
     #diff_z = math.fabs(dims['miny'] - dims['maxy'])
@@ -90,12 +113,36 @@ def transform_capital_onto_top(capital_mesh, dims):
     #theta = math.radians(180)
     #transformation_matrix = np.array([[1,0,0,0],[0, math.cos(theta), -math.sin(theta), 0],[0, math.sin(theta), math.cos(theta), 0],[0,0,0,1]])
 
-    transform_matrix = None
-    if CAPITALNUM == "0952":
+    transform_matrix = None #, top_normal, points_mid = None
+    face_pts = np.array([[dims["minx"],dims["miny"],dims["minz"]], 
+                        [dims["minx"],dims["miny"],dims["maxz"]], 
+                        [dims["minx"],dims["maxy"],dims["minz"]],
+                        [dims["minx"],dims["maxy"],dims["maxz"]],
+                        [dims["maxx"],dims["miny"],dims["minz"]], 
+                        [dims["maxx"],dims["miny"],dims["maxz"]], 
+                        [dims["maxx"],dims["maxy"],dims["minz"]],
+                        [dims["maxx"],dims["maxy"],dims["maxz"]]])
+      
+    if CAPITALNUM == "0262":
         #find surface normal of top plane: upper top face is on XY plane -- all surface points are at max z
-        face_pts = np.array([[dims["minx"],dims["miny"],dims["maxz"]], [dims["maxx"],dims["miny"],dims["maxz"]], [dims["maxx"],dims["maxy"],dims["maxz"]]])
-        top_normal = np.cross(face_pts[1] - face_pts[0], face_pts[1] - face_pts[2])
+        top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
+        points_mid = np.array((face_pts[5] + face_pts[1] + face_pts[7]) / 3.0)
+    elif CAPITALNUM == "0952":
+        #find surface normal of top plane: upper top face is on XY plane -- all surface points are at max z
+        top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
+        points_mid = np.array((face_pts[5] + face_pts[1] + face_pts[7]) / 3.0)
+    elif CAPITALNUM == "0953":
+        #find surface normal of top plane: upper top face is on XZ plane, all surface points are at min x
+        top_normal = np.cross(face_pts[0] - face_pts[1], face_pts[0] - face_pts[2])
         points_mid = np.array((face_pts[2] + face_pts[1] + face_pts[0]) / 3.0)
+    elif CAPITALNUM == "0955":
+        #find surface normal of top plane: upper top face is on XY plane -- all surface points are at max z
+        top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
+        points_mid = np.array((face_pts[5] + face_pts[1] + face_pts[7]) / 3.0)
+    #if CAPITALNUM == "2281":
+        #find surface normal of top plane: upper top face is on XZ plane -- all surface points are at max x???
+        #top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
+        #points_mid = np.array((face_pts[5] + face_pts[1] + face_pts[7]) / 3.0)
     
     #Scalar product: make sure the top surface normal is pointing away from the capital center
     top_normal /= np.linalg.norm(top_normal)
@@ -106,18 +153,18 @@ def transform_capital_onto_top(capital_mesh, dims):
     #transform_matrix = capital_mesh.rotation_matrix([0,1,0], math.radians(180))
     transform_matrix_r = np.vstack((transform_matrix, [0,0,0]))
     transform_matrix_t = np.hstack((transform_matrix_r, [[0],[0],[0],[1]]))
-    print str(transform_matrix_t)
+    #print str(transform_matrix_t)
     capital_mesh.transform(transform_matrix_t)
     
     numFaces = capital_mesh.points.shape[0]
     #print "POINT: " + str(capital_mesh.points[0:2].reshape((2,3,3)))
     #print "POINT_z: " + str(np.amin(capital_mesh.points[0:2].reshape((2,3,3)), axis=(0,1))[2])
     move_z = np.amin(capital_mesh.points.reshape((numFaces,3,3)), axis=(0,1))[2] #get the min z; each row contains the 3 3D points
-    print move_z
+    #print move_z
     translation = np.array([[0],[0],[0-move_z],[1]])
     transform_matrix = np.vstack((np.eye(3), [0,0,0]))
     transform_matrix = np.hstack((transform_matrix, translation))
-    print str(transform_matrix)
+    #print str(transform_matrix)
     capital_mesh.transform(transform_matrix)
     
     #transform_matrix = np.array([[1,0,0,0],[0, math.cos(math.radians(180)), -math.sin(math.radians(180)), 0],[0, math.sin(math.radians(180)), math.cos(math.radians(180)), 0],[0,0,0,1]])
@@ -137,8 +184,9 @@ def create_plot(capital_mesh):
     # Show the plot to the screen
     pyplot.show()
 
-    #def cut_slice(vertices, faces):
-    #slice = meshcut.cross_section(vertices, faces, plane_orig=(1.2, -0.125, 0), plane_normal=(1, 0, 0))
+
+
+
 
 vertices = [] #expect v 1 2 3
 faces = [] #expect f 1 2 3
@@ -163,7 +211,7 @@ if lineNum <= 1:
 
 vertices_np = np.array(vertices)
 faces_np = np.array(faces)
-print "THIRD VERTEX!: " + str(vertices_np[3])
+#print "THIRD VERTEX!: " + str(vertices_np[3])
 '''Make use of numpy-stl mesh library'''
 #create the mesh
 capital_mesh = mesh.Mesh(np.zeros(faces_np.shape[0], dtype=mesh.Mesh.dtype))
@@ -172,11 +220,10 @@ for i, f in enumerate(faces_np):
     for j in range(3):
         capital_mesh.vectors[i][j] = vertices_np[f[j]-1,:]
 # Write the mesh to file
-capital_mesh.save(MESHFILENAME)
-print "cap mesh 3: " + str(capital_mesh[3])
+#print "cap mesh 3: " + str(capital_mesh[3])
 #print capital_mesh.normals
 dims = get_capital_dimensions(capital_mesh)
-transform_capital_onto_top(capital_mesh, dims)
-
 create_plot(capital_mesh)
-
+transform_capital_onto_top(capital_mesh, dims)
+capital_mesh.save(MESHFILENAME) #save transformed version
+create_plot(capital_mesh)
