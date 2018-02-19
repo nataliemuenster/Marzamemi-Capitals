@@ -11,6 +11,10 @@ SKIPLINES = 8
 def get_capital_dimensions(vertices_np, capital_mesh):
     minx = maxx = miny = maxy = minz = maxz = None
 
+    #print "SHAPE:" + str(vertices_np.shape)
+    if vertices_np.shape[1] == 9:
+        vertices_np = vertices_np.reshape((30000,3))
+    #print "SHAPE:" + str(vertices_np.shape)
     vertex_min = np.amin(vertices_np, axis=0) #[minx, miny, minz]
     vertex_max = np.amax(vertices_np, axis=0) #[maxx, maxy, maxz]
     volume, cog, inertia = capital_mesh.get_mass_properties()
@@ -183,7 +187,7 @@ def create_plot(capital_mesh):
 
 
 
-def processCapital(capitalNum):
+def process_capital(capitalNum):
     filename = "../Data/Lot" + capitalNum + "_10000tri.obj"
     meshfilename = "../Data/Lot" + capitalNum + "_10000tri_mesh.stl"
     vertices = [] #expect v 1 2 3
@@ -224,5 +228,10 @@ def processCapital(capitalNum):
     #create_plot(capital_mesh)
     transform_capital_onto_top(capitalNum, capital_mesh, dims)
     capital_mesh.save(meshfilename) #save transformed version
+    new_dims = get_capital_dimensions(capital_mesh.points, capital_mesh) 
     #create_plot(capital_mesh)
-    return {"volume": dims['volume']}   
+    
+    width = (math.fabs(new_dims['minx'] - new_dims['maxx']), math.fabs(new_dims['miny'] - new_dims['maxy']))
+    return {"volume": new_dims['volume'], "height": new_dims['maxz'], "width": width}   
+
+
