@@ -193,7 +193,7 @@ def process_capital(capitalNum):
     vertices = [] #expect v 1 2 3
     faces = [] #expect f 1 2 3
     lineNum = 0
-    for line in open(filename): #does this work??
+    for line in open(filename):
         if lineNum < SKIPLINES:
             lineNum += 1
             continue
@@ -213,7 +213,7 @@ def process_capital(capitalNum):
 
     vertices_np = np.array(vertices)
     faces_np = np.array(faces)
-    #print "THIRD VERTEX!: " + str(vertices_np[3])
+    
     '''Make use of numpy-stl mesh library'''
     #create the mesh
     capital_mesh = mesh.Mesh(np.zeros(faces_np.shape[0], dtype=mesh.Mesh.dtype))
