@@ -10,13 +10,11 @@ SKIPLINES = 8
 
 def get_capital_dimensions(vertices_np, capital_mesh):
     minx = maxx = miny = maxy = minz = maxz = None
-
-    print "SHAPE:" + str(vertices_np.shape)
     if vertices_np.shape[1] == 9:
         vertices_np = vertices_np.reshape((len(vertices_np)*3,3))
-        vertices_np = np.unique(vertices_np, axis=0)
-    print "SHAPE:" + str(vertices_np.shape)
-    print vertices_np[0]
+        #.stl format for storing faces is to keep data for each vertex, instead of reference to vertex, so need to trim to only unique ones
+        vertices_np = np.unique(vertices_np, axis=0) 
+    
     vertex_min = np.amin(vertices_np, axis=0) #[minx, miny, minz]
     vertex_max = np.amax(vertices_np, axis=0) #[maxx, maxy, maxz]
     volume, cog, inertia = capital_mesh.get_mass_properties()
@@ -234,16 +232,14 @@ def process_capital(capitalNum):
     # Write the mesh to file
     #print "cap mesh 3: " + str(capital_mesh[3])
     #print capital_mesh.normals
-    print vertices_np[0]
     vertices_np, dims = get_capital_dimensions(vertices_np, capital_mesh)
-    create_plot(capital_mesh)
+    #create_plot(capital_mesh)
     transform_capital_onto_top(capitalNum, capital_mesh, dims)
     capital_mesh.save(meshfilename) #save transformed version
     vertices_np, new_dims = get_capital_dimensions(capital_mesh.points, capital_mesh) 
-    print vertices_np[0]
-    create_plot(capital_mesh)
+    #create_plot(capital_mesh)
     
     width = (math.fabs(new_dims['minx'] - new_dims['maxx']), math.fabs(new_dims['miny'] - new_dims['maxy']))
-    return {"volume": new_dims['volume'], "height": new_dims['maxz'], "width": width}   
+    return vertices_np, {"volume": new_dims['volume'], "height": new_dims['maxz'], "width": width}   
 
 
