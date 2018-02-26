@@ -10,9 +10,11 @@ def get_slice_intervals(height):
 	#in order from z = 0 upward, so top of capital is first
 	return [i*height/float(numSlices+1) + height/(2*(numSlices+1)) for i in xrange(numSlices)]
 
-def find_slice_area(filename):
-	singleSlice = process_capital(filename)
-	#single_slice = mesh.Mesh.from_file(filename)
+def find_slice_area(capitalNum):
+	#singleSlice = process_slice(capitalNum) #First attempt
+	#Third attempt:
+	filename = "..Data/Lot"
+	singleSlice = find_rectangle_approximation(filename)
 	print len(singleSlice.normals)
 	print "AREAS!!"
 	print singleSlice.areas
@@ -20,7 +22,7 @@ def find_slice_area(filename):
 def compare_slices(capitalNum, characteristics):
 	sliceIntervals = get_slice_intervals(characteristics['height'])
 	print "SLICE INTERVALS: " + str(sliceIntervals)
-	filename = "../Mesh_slices/Lot" + capitalNum + "_10000tri_mesh_slice"
+	
 	sliceDist = sliceIntervals[1] - sliceIntervals[0]
 	sliceAreas = []
 	gradients = []
@@ -34,8 +36,10 @@ def compare_slices(capitalNum, characteristics):
 	avgGradient /= (numSlices-1)
 	characteristics['avgGradient'] = avgGradient
 
-
-def process_capital(filename):
+'''First attempt at finding slice area -- parsing a .obj file of vertices + traingles of single plane 
+to then try to get outised edges to use shoelace formula for area'''
+def process_slice(capitalNum):
+    filename = "../Mesh_slices/Lot" + capitalNum + "_10000tri_mesh_slice"
     vertices = [] #expect v 1 2 3
     faces = [] #expect f 1 2 3
     lineNum = 0
@@ -56,7 +60,8 @@ def process_capital(filename):
             
         elif data[0] == 'f':
             firstRound = 0
-            #shoulda ppend a vector -- this format has 1/1/1 insead of 1, so this gets rid of trailing slashes and copies
+            #should append a vector -- this format has 1/1/1 insead of 1, so this gets rid of trailing slashes and copies
+            print data
             facePts = [(int(data[1][:(len(data[1]) - 2) / 3])), (int(data[2][:(len(data[2]) - 2) / 3])), (int(data[3][:(len(data[3]) - 2) / 3]))]
             faces.append(facePts)
 

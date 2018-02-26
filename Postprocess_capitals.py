@@ -11,14 +11,16 @@ SKIPLINES = 8
 def get_capital_dimensions(vertices_np, capital_mesh):
     minx = maxx = miny = maxy = minz = maxz = None
 
-    #print "SHAPE:" + str(vertices_np.shape)
+    print "SHAPE:" + str(vertices_np.shape)
     if vertices_np.shape[1] == 9:
-        vertices_np = vertices_np.reshape((30000,3))
-    #print "SHAPE:" + str(vertices_np.shape)
+        vertices_np = vertices_np.reshape((len(vertices_np)*3,3))
+        vertices_np = np.unique(vertices_np, axis=0)
+    print "SHAPE:" + str(vertices_np.shape)
+    print vertices_np[0]
     vertex_min = np.amin(vertices_np, axis=0) #[minx, miny, minz]
     vertex_max = np.amax(vertices_np, axis=0) #[maxx, maxy, maxz]
     volume, cog, inertia = capital_mesh.get_mass_properties()
-    return {"volume": volume, "cog": cog, "intertia": inertia, "minx": vertex_min[0], "maxx": vertex_max[0], "miny": vertex_min[1], "maxy": vertex_max[1], "minz": vertex_min[2], "maxz": vertex_max[2]}
+    return vertices_np, {"volume": volume, "cog": cog, "intertia": inertia, "minx": vertex_min[0], "maxx": vertex_max[0], "miny": vertex_min[1], "maxy": vertex_max[1], "minz": vertex_min[2], "maxz": vertex_max[2]}
 
 def compute_transform_matrix(top_normal):
     # From http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q38
@@ -141,10 +143,18 @@ def transform_capital_onto_top(capitalNum, capital_mesh, dims):
         top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
         points_mid = np.array((face_pts[5] + face_pts[1] + face_pts[7]) / 3.0)
     #if capitalNum == "2281":
-        #find surface normal of top plane: upper top face is on XZ plane -- all surface points are at max x???
-        #top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
-        #points_mid = np.array((face_pts[5] + face_pts[1] + face_pts[7]) / 3.0)
-    
+        #find surface normal of top plane: upper top face is on XZ plane -- all surface points are at max y???
+        #top_normal = np.cross(face_pts[2] - face_pts[3], face_pts[2] - face_pts[6])
+        #points_mid = np.array((face_pts[2] + face_pts[3] + face_pts[6]) / 3.0)
+    elif capitalNum == "2282":
+        #find surface normal of top plane: upper top face is on XY plane -- all surface points are at max z
+        top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
+        points_mid = np.array((face_pts[5] + face_pts[1] + face_pts[7]) / 3.0)
+    elif capitalNum == "0954":
+        #find surface normal of top plane: upper top face is on XZ plane -- all surface points are at min y
+        top_normal = np.cross(face_pts[0] - face_pts[1], face_pts[0] - face_pts[4])
+        points_mid = np.array((face_pts[0] + face_pts[1] + face_pts[4]) / 3.0)
+
     #Scalar product: make sure the top surface normal is pointing away from the capital center
     top_normal /= np.linalg.norm(top_normal)
     if np.dot(points_mid - dims["cog"], top_normal) < 0: #center of gravity here should really be centroid, but they should be similar for these objects
@@ -224,12 +234,14 @@ def process_capital(capitalNum):
     # Write the mesh to file
     #print "cap mesh 3: " + str(capital_mesh[3])
     #print capital_mesh.normals
-    dims = get_capital_dimensions(vertices_np, capital_mesh)
-    #create_plot(capital_mesh)
+    print vertices_np[0]
+    vertices_np, dims = get_capital_dimensions(vertices_np, capital_mesh)
+    create_plot(capital_mesh)
     transform_capital_onto_top(capitalNum, capital_mesh, dims)
     capital_mesh.save(meshfilename) #save transformed version
-    new_dims = get_capital_dimensions(capital_mesh.points, capital_mesh) 
-    #create_plot(capital_mesh)
+    vertices_np, new_dims = get_capital_dimensions(capital_mesh.points, capital_mesh) 
+    print vertices_np[0]
+    create_plot(capital_mesh)
     
     width = (math.fabs(new_dims['minx'] - new_dims['maxx']), math.fabs(new_dims['miny'] - new_dims['maxy']))
     return {"volume": new_dims['volume'], "height": new_dims['maxz'], "width": width}   
