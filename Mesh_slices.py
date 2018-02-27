@@ -23,7 +23,7 @@ def get_slice_intervals(vertices, height):
 	sliceDist = (height - z_maxWidth) / numSlices
 	return [z_maxWidth + i*sliceDist for i in xrange(numSlices)] #first slice is at widest part of top, last slice is an interval away from end to account for slanted end
 
-def find_slice_area(interval, vertices):
+def find_slice_dimensions(interval, vertices):
 	#singleSlice = process_slice(capitalNum) #First attempt
 	#Third attempt:
 	#singleSlice = find_rectangle_approximation(vertices)
@@ -33,28 +33,64 @@ def find_slice_area(interval, vertices):
 	x_min, y_min = np.amin(sliceVertices, axis=0)[:2] #[minx, miny]
    	x_max, y_max = np.amax(sliceVertices, axis=0)[:2] #[maxx, maxy]
    	maxRectArea = math.fabs((x_max-x_min) * (y_max-y_min)) #will this ever be negative?
-	return maxRectArea
+	return [x_min, x_max, y_min, y_max, maxRectArea]
 
 def compare_slices(capitalNum, vertices, characteristics):
 	sliceIntervals = get_slice_intervals(vertices, characteristics['height'])
 	#print "SLICE INTERVALS: " + str(sliceIntervals)
 	sliceDist = sliceIntervals[1] - sliceIntervals[0]
-	sliceAreas = []
+	
 	gradients = []
 	avgGradient = 0
-	for i,interval in enumerate(sliceIntervals):
-		sliceAreas.append(find_slice_area(interval, vertices))
-		if i > 0:
-			gradient = sliceAreas[i] - sliceAreas[i-1]
-			gradients.append(gradient)
-			avgGradient += gradient
+	#totalGradient = 0
+	sliceDims = [] #each element is a list of the slice dimenesions
+	sideEdges = [[],[],[],[]] #capital has four side edges along z axis -- store location of corners for each slice
+	edgeSlopes = [[],[],[],[]] #instantiate to empty arrays
 
+	for interval in sliceIntervals:
+		sliceDims.append(find_slice_dimensions(interval, vertices))
+
+	for i in xrange(numSlices):
+		#areas
+		if i > 0:
+			gradient = (sliceDims[i][-1] - sliceDims[i-1][-1]) / sliceDist
+			gradients.append(gradient)
+			#evaluate how much the gradients differ to measure consistency of slope? erosion
+			avgGradient += gradient
+			#totalGradient += sliceDims[i][-1]
+
+		#edge slopes (add each corner of the slice)
+		#do i need to store these?
+		sideEdges[0].append((sliceDims[i][0], sliceDims[i][2])) #minx, miny
+		sideEdges[1].append((sliceDims[i][0], sliceDims[i][3])) #minx, maxy
+		sideEdges[2].append((sliceDims[i][1], sliceDims[i][2])) #maxx, miny
+		sideEdges[3].append((sliceDims[i][1], sliceDims[i][3])) #maxx, maxy
+		
+		if i > 0:
+			edgeSlopes[0].append((sliceDims[i][0] - sliceDims[i-1][0], sliceDims[i][2] - sliceDims[i-1][2]))
+			edgeSlopes[1].append((sliceDims[i][0] - sliceDims[i-1][0], sliceDims[i][3] - sliceDims[i-1][3]))
+			edgeSlopes[2].append((sliceDims[i][1] - sliceDims[i-1][1], sliceDims[i][2] - sliceDims[i-1][2]))
+			edgeSlopes[3].append((sliceDims[i][1] - sliceDims[i-1][1], sliceDims[i][3] - sliceDims[i-1][3]))
+		#evaluate how much the gradients differ to measure roughness?
+
+	#slope between start and end slice, per corner:
+	sideSlopes = [((sideEdges[0][0][0] - sideEdges[0][-1][0]) / (sliceDist * numSlices), (sideEdges[0][0][1] - sideEdges[0][-1][1]) / (sliceDist * numSlices)),
+					((sideEdges[1][0][0] - sideEdges[1][-1][0]) / (sliceDist * numSlices), (sideEdges[1][0][1] - sideEdges[1][-1][1]) / (sliceDist * numSlices)),
+					((sideEdges[2][0][0] - sideEdges[2][-1][0]) / (sliceDist * numSlices), (sideEdges[2][0][1] - sideEdges[2][-1][1]) / (sliceDist * numSlices)),
+					((sideEdges[3][0][0] - sideEdges[3][-1][0]) / (sliceDist * numSlices), (sideEdges[3][0][1] - sideEdges[3][-1][1]) / (sliceDist * numSlices))]
+	# ^ Make the signs correct for direction
+	print "SIDE EDGE SLOPES: " + str(sideSlopes)
+	characteristics['side edge slopes'] = sideSlopes
+	#totalGradient /= (sliceDist * numSlices)
+	#print "SLICEDIST: " + str(sliceDist) + ", TOTAL AREA GRADIENT: " + str(totalGradient)
 	#if I want top dimensions and not just area, restructure get_slice_interval briefly
-	characteristics['top_area'] = sliceAreas[0]
-	avgGradient /= (numSlices-1)
-	#print "RECTANGLES SLICES: " + str(sliceAreas)
-	characteristics['slice areas'] = sliceAreas
-	characteristics['avgGradient'] = avgGradient
+	avgGradient /= (numSlices)
+	characteristics['top_area'] = sliceDims[0][-1]
+	
+	characteristics['slice areas'] = np.array(sliceDims)[:,-1]
+	print "RECTANGLES SLICES: " + str(characteristics['slice areas'])
+
+	characteristics['avg area gradient'] = avgGradient
 
 
 
