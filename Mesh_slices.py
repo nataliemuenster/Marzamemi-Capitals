@@ -28,12 +28,14 @@ def find_slice_dimensions(interval, vertices):
 	#Third attempt:
 	#singleSlice = find_rectangle_approximation(vertices)
 	#find all vertices with z-value near the slice location
+	
 	sliceIndices = np.where(np.logical_and(vertices[:,2] >= interval-ZRange, vertices[:,2] <= interval+ZRange))[0]
 	sliceVertices = [vertices[i] for i in sliceIndices]
 	x_min, y_min = np.amin(sliceVertices, axis=0)[:2] #[minx, miny]
    	x_max, y_max = np.amax(sliceVertices, axis=0)[:2] #[maxx, maxy]
    	maxRectArea = math.fabs((x_max-x_min) * (y_max-y_min)) #will this ever be negative?
-	return [x_min, x_max, y_min, y_max, maxRectArea]
+	z_val = interval #keep track of the z value for this slice
+	return [x_min, x_max, y_min, y_max, z_val, maxRectArea]
 
 def compare_slices(capitalNum, vertices, characteristics):
 	sliceIntervals = get_slice_intervals(vertices, characteristics['height'])
@@ -46,6 +48,8 @@ def compare_slices(capitalNum, vertices, characteristics):
 	sliceDims = [] #each element is a list of the slice dimenesions
 	sideEdges = [[],[],[],[]] #capital has four side edges along z axis -- store location of corners for each slice
 	edgeSlopes = [[],[],[],[]] #instantiate to empty arrays
+	centers = []
+	centerSlopes = []
 
 	for interval in sliceIntervals:
 		sliceDims.append(find_slice_dimensions(interval, vertices))
@@ -59,25 +63,33 @@ def compare_slices(capitalNum, vertices, characteristics):
 			avgGradient += gradient
 			#totalGradient += sliceDims[i][-1]
 
-		#edge slopes (add each corner of the slice)
-		#do i need to store these?
+		
+		#Corners of each slice. do i need to store these?
 		sideEdges[0].append((sliceDims[i][0], sliceDims[i][2])) #minx, miny
 		sideEdges[1].append((sliceDims[i][0], sliceDims[i][3])) #minx, maxy
 		sideEdges[2].append((sliceDims[i][1], sliceDims[i][2])) #maxx, miny
 		sideEdges[3].append((sliceDims[i][1], sliceDims[i][3])) #maxx, maxy
 		
-		if i > 0:
-			edgeSlopes[0].append((sliceDims[i][0] - sliceDims[i-1][0], sliceDims[i][2] - sliceDims[i-1][2]))
+		if i > 0: #edge slopes between each slice (add each corner of the slice)
+			edgeSlopes[0].append((sliceDims[i][0] - sliceDims[i-1][0], sliceDims[i][2] - sliceDims[i-1][2])) #minus or add and /2????!!!
 			edgeSlopes[1].append((sliceDims[i][0] - sliceDims[i-1][0], sliceDims[i][3] - sliceDims[i-1][3]))
 			edgeSlopes[2].append((sliceDims[i][1] - sliceDims[i-1][1], sliceDims[i][2] - sliceDims[i-1][2]))
 			edgeSlopes[3].append((sliceDims[i][1] - sliceDims[i-1][1], sliceDims[i][3] - sliceDims[i-1][3]))
 		#evaluate how much the gradients differ to measure roughness?
 
+		#center of each slice
+		centers.append(((sliceDims[i][1]+sliceDims[i][0])/2, (sliceDims[i][3]+sliceDims[i][2])/2, sliceDims[i][4])) #xmax-xmin, ymax-ymin, z_val
+		#slope bw centers of each slice
+		#if i > 0:
+		#	centerSlopes.append(centers[i] - centers[i-1])
 	#slope between start and end slice, per corner:
 	sideSlopes = [((sideEdges[0][0][0] - sideEdges[0][-1][0]) / (sliceDist * numSlices), (sideEdges[0][0][1] - sideEdges[0][-1][1]) / (sliceDist * numSlices)),
 					((sideEdges[1][0][0] - sideEdges[1][-1][0]) / (sliceDist * numSlices), (sideEdges[1][0][1] - sideEdges[1][-1][1]) / (sliceDist * numSlices)),
 					((sideEdges[2][0][0] - sideEdges[2][-1][0]) / (sliceDist * numSlices), (sideEdges[2][0][1] - sideEdges[2][-1][1]) / (sliceDist * numSlices)),
 					((sideEdges[3][0][0] - sideEdges[3][-1][0]) / (sliceDist * numSlices), (sideEdges[3][0][1] - sideEdges[3][-1][1]) / (sliceDist * numSlices))]
+	
+	centerAvgSlope = (centers[-1][0] - centers[0][0], centers[-1][1] - centers[0][1], centers[-1][2] - centers[0][2]) # (x,y,z) line of symmetry that goes through the center of the capital, out the top
+	#for i in 
 	# ^ Make the signs correct for direction
 	print "SIDE EDGE SLOPES: " + str(sideSlopes)
 	characteristics['side edge slopes'] = sideSlopes
