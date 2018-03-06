@@ -38,71 +38,89 @@ def find_slice_dimensions(interval, vertices):
 	return [x_min, x_max, y_min, y_max, z_val, maxRectArea]
 
 def compare_slices(capitalNum, vertices, characteristics):
+	#"slope" = rate of change in x or y with respect to z
 	sliceIntervals = get_slice_intervals(vertices, characteristics['height'])
 	#print "SLICE INTERVALS: " + str(sliceIntervals)
 	sliceDist = sliceIntervals[1] - sliceIntervals[0]
 	
-	gradients = []
-	avgGradient = 0
+	areaGradients = np.empty([numSlices-1])
+	avgAreaGradient = 0.0
 	#totalGradient = 0
-	sliceDims = [] #each element is a list of the slice dimenesions
-	sideEdges = [[],[],[],[]] #capital has four side edges along z axis -- store location of corners for each slice
-	edgeSlopes = [[],[],[],[]] #instantiate to empty arrays
-	centers = []
-	centerSlopes = []
+	sliceDims = [] #each element is a list of the slice dimensions
+	sideEdges = np.empty([4, numSlices, 2]) #[[],[],[],[]] #capital has four side edges along z axis -- store location of corners for each slice
+	edgeSlopes = np.empty([4, numSlices-1, 2])#[[],[],[],[]] #instantiate to empty arrays
+	centers = np.empty([numSlices, 2])#[]
+	centerGradients = np.empty([numSlices-1, 2])
+	avgSideLengthsX = 0.0
+	avgSideLengthsY = 0.0
 
 	for interval in sliceIntervals:
 		sliceDims.append(find_slice_dimensions(interval, vertices))
+	sliceDims = np.array(sliceDims)
 
 	for i in xrange(numSlices):
+		#print sliceDims[i][4]
 		#areas
 		if i > 0:
-			gradient = (sliceDims[i][-1] - sliceDims[i-1][-1]) / sliceDist
-			gradients.append(gradient)
-			#evaluate how much the gradients differ to measure consistency of slope? erosion
-			avgGradient += gradient
-			#totalGradient += sliceDims[i][-1]
-
+			areaGradients[i-1] = (sliceDims[i][-1] - sliceDims[i-1][-1]) / sliceDist #normalized for dist bw slices
 		
 		#Corners of each slice. do i need to store these?
-		sideEdges[0].append((sliceDims[i][0], sliceDims[i][2])) #minx, miny
-		sideEdges[1].append((sliceDims[i][0], sliceDims[i][3])) #minx, maxy
-		sideEdges[2].append((sliceDims[i][1], sliceDims[i][2])) #maxx, miny
-		sideEdges[3].append((sliceDims[i][1], sliceDims[i][3])) #maxx, maxy
+		sideEdges[0][i] = np.array([sliceDims[i][0], sliceDims[i][2]])#, sliceDims[i][4]]) #minx, miny, z
+		sideEdges[1][i] = np.array([sliceDims[i][0], sliceDims[i][3]])#, sliceDims[i][4]]) #minx, maxy, z
+		sideEdges[2][i] = np.array([sliceDims[i][1], sliceDims[i][2]])#, sliceDims[i][4]]) #maxx, miny, z
+		sideEdges[3][i] = np.array([sliceDims[i][1], sliceDims[i][3]])#, sliceDims[i][4]]) #maxx, maxy, z
 		
-		if i > 0: #edge slopes between each slice (add each corner of the slice)
-			edgeSlopes[0].append((sliceDims[i][0] - sliceDims[i-1][0], sliceDims[i][2] - sliceDims[i-1][2])) #minus or add and /2????!!!
-			edgeSlopes[1].append((sliceDims[i][0] - sliceDims[i-1][0], sliceDims[i][3] - sliceDims[i-1][3]))
-			edgeSlopes[2].append((sliceDims[i][1] - sliceDims[i-1][1], sliceDims[i][2] - sliceDims[i-1][2]))
-			edgeSlopes[3].append((sliceDims[i][1] - sliceDims[i-1][1], sliceDims[i][3] - sliceDims[i-1][3]))
+		if i > 0: #edge slopes between each slice (from each corner of the slice), normalize for dist bw slices
+			edgeSlopes[0][i-1] = (sideEdges[0][i] - sideEdges[0][i-1]) / sliceDist #np.array([sliceDims[i][0] - sliceDims[i-1][0], sliceDims[i][2] - sliceDims[i-1][2], sliceDims[i][4] - sliceDims[i-1][4]])
+			edgeSlopes[1][i-1] = (sideEdges[1][i] - sideEdges[1][i-1]) / sliceDist #np.array([sliceDims[i][0] - sliceDims[i-1][0], sliceDims[i][3] - sliceDims[i-1][3], sliceDims[i][4] - sliceDims[i-1][4]])
+			edgeSlopes[2][i-1] = (sideEdges[2][i] - sideEdges[2][i-1]) / sliceDist #np.array([sliceDims[i][1] - sliceDims[i-1][1], sliceDims[i][2] - sliceDims[i-1][2], sliceDims[i][4] - sliceDims[i-1][4]])
+			edgeSlopes[3][i-1] = (sideEdges[3][i] - sideEdges[3][i-1]) / sliceDist #np.array([sliceDims[i][1] - sliceDims[i-1][1], sliceDims[i][3] - sliceDims[i-1][3], sliceDims[i][4] - sliceDims[i-1][4]])
 		#evaluate how much the gradients differ to measure roughness?
 
 		#center of each slice
-		centers.append(((sliceDims[i][1]+sliceDims[i][0])/2, (sliceDims[i][3]+sliceDims[i][2])/2, sliceDims[i][4])) #xmax-xmin, ymax-ymin, z_val
-		#slope bw centers of each slice
-		#if i > 0:
-		#	centerSlopes.append(centers[i] - centers[i-1])
+		centers[i] = np.array([(sliceDims[i][1]+sliceDims[i][0])/2, (sliceDims[i][3]+sliceDims[i][2])/2])#, sliceDims[i][4]]) #xmax-xmin, ymax-ymin, z_val
+		#slope bw centers of each slice, normalize for dist bw slices
+		if i > 0:
+			centerGradients[i-1] = (centers[i] - centers[i-1]) / sliceDist
+		
+		#want to compare difference in avg lengths of x vs y widths for erosion
+		avgSideLengthsX += (sliceDims[i][1] - sliceDims[i][0]) #x_max - x_min
+		avgSideLengthsY += (sliceDims[i][3] - sliceDims[i][2]) #x_max - x_min
+		
+
 	#slope between start and end slice, per corner:
-	sideSlopes = [((sideEdges[0][0][0] - sideEdges[0][-1][0]) / (sliceDist * numSlices), (sideEdges[0][0][1] - sideEdges[0][-1][1]) / (sliceDist * numSlices)),
-					((sideEdges[1][0][0] - sideEdges[1][-1][0]) / (sliceDist * numSlices), (sideEdges[1][0][1] - sideEdges[1][-1][1]) / (sliceDist * numSlices)),
-					((sideEdges[2][0][0] - sideEdges[2][-1][0]) / (sliceDist * numSlices), (sideEdges[2][0][1] - sideEdges[2][-1][1]) / (sliceDist * numSlices)),
-					((sideEdges[3][0][0] - sideEdges[3][-1][0]) / (sliceDist * numSlices), (sideEdges[3][0][1] - sideEdges[3][-1][1]) / (sliceDist * numSlices))]
-	
-	centerAvgSlope = (centers[-1][0] - centers[0][0], centers[-1][1] - centers[0][1], centers[-1][2] - centers[0][2]) # (x,y,z) line of symmetry that goes through the center of the capital, out the top
-	#for i in 
-	# ^ Make the signs correct for direction
-	print "SIDE EDGE SLOPES: " + str(sideSlopes)
-	characteristics['side edge slopes'] = sideSlopes
+	sideAvgSlopes = (sideEdges[0][-1] - sideEdges[0][0]) / (sliceDist * numSlices) #NEED TO DIVIDE? I THINK SO, BC THIS IS A LINE... IF IT WERE A RATION IT WOULD NOT
+	#[((sideEdges[0][0][0] - sideEdges[0][-1][0]) / (sliceDist * numSlices), (sideEdges[0][0][1] - sideEdges[0][-1][1]) / (sliceDist * numSlices)),
+					#((sideEdges[1][0][0] - sideEdges[1][-1][0]) / (sliceDist * numSlices), (sideEdges[1][0][1] - sideEdges[1][-1][1]) / (sliceDist * numSlices)),
+					#((sideEdges[2][0][0] - sideEdges[2][-1][0]) / (sliceDist * numSlices), (sideEdges[2][0][1] - sideEdges[2][-1][1]) / (sliceDist * numSlices)),
+					#((sideEdges[3][0][0] - sideEdges[3][-1][0]) / (sliceDist * numSlices), (sideEdges[3][0][1] - sideEdges[3][-1][1]) / (sliceDist * numSlices))]
+	avgSideLengthsX /= numSlices
+	avgSideLengthsY /= numSlices
+	characteristics['avg slice side lengths'] = (avgSideLengthsX, avgSideLengthsY)
+
+	#print "SIDE AVG EDGE SLOPES: " + str(sideAvgSlopes)
+	characteristics['side avg edge slopes'] = sideAvgSlopes
 	#totalGradient /= (sliceDist * numSlices)
 	#print "SLICEDIST: " + str(sliceDist) + ", TOTAL AREA GRADIENT: " + str(totalGradient)
 	#if I want top dimensions and not just area, restructure get_slice_interval briefly
-	avgGradient /= (numSlices)
-	characteristics['top_area'] = sliceDims[0][-1]
 	
-	characteristics['slice areas'] = np.array(sliceDims)[:,-1]
-	print "RECTANGLES SLICES: " + str(characteristics['slice areas'])
+	#evaluate how much the gradients differ to measure consistency of slope? erosion
+	avgAreaGradient = (areaGradients[-1] - areaGradients[0]) / (sliceDist * numSlices) #OR JUST NUMSLICES IF COMPARING VALUES FROM BW SLICES IN AREAGRADIENTS DIRECTLY!
+	#totalGradient += sliceDims[i][-1]
+	avgAreaGradient /= numSlices
+	characteristics['top area'] = sliceDims[0][-1]
+	#characteristics['slice areas'] = np.array(sliceDims)[:,-1] #do I need to store these?
+	characteristics['avg slice area'] = np.average(sliceDims[:,-1])
+	#print "RECTANGLES SLICES: " + str(characteristics['slice areas'])
+	characteristics['area gradients'] = areaGradients
+	characteristics['avg area gradient'] = avgAreaGradient
 
-	characteristics['avg area gradient'] = avgGradient
+	centerAvgGradient = (centers[-1] - centers[0]) / (sliceDist * numSlices) #(centers[-1][0] - centers[0][0], centers[-1][1] - centers[0][1], centers[-1][2] - centers[0][2]) # (x,y,z) line of symmetry that goes through the center of the capital, out the top
+	# ^ Make the signs correct for direction
+	print "CENTER AVG SLOPE: " + str(centerAvgGradient)
+	characteristics['avg center gradient'] = centerAvgGradient
+	characteristics['center gradients'] = centerGradients
+	#will use to see how much centerGradients[j] differs from centerAvgGradient
 
 
 

@@ -1,8 +1,5 @@
 import numpy as np
-import stl
 from stl import mesh
-from mpl_toolkits import mplot3d
-from matplotlib import pyplot
 import math
 
 SKIPLINES = 8
