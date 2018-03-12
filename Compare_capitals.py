@@ -3,25 +3,38 @@ import math
 import Postprocess_capitals as process
 import Mesh_slices as mesh_slices
 import Evaluate_similarity as similarity
+import correlate
 import csv
 
-csvFile = 'features.csv'
-capitals = ['0954','0955', '2282', "0952", "0953", "0262"]
+csvFile = 'capital_features.csv'
+capitals = ['0262','0952','0953','0954','0955','2281','2282','2285']
 characteristics = {}
-features = [] #use numpy array instead?
+features = np.zeros([len(capitals), similarity.numFeatures()])
 
 for i,c in enumerate(capitals):
+	#print c
 	vertices, characteristics[c] = process.process_capital(c)
 	mesh_slices.compare_slices(c, vertices, characteristics[c])
-	print "CHARACTERISTICS for capital " + c + ": " + str(characteristics[c])
-	features.append(similarity.evaluate(characteristics[c]))
-	print "FEATURES for capital " + c + ": " + str(features[i])
+	#print "CHARACTERISTICS for capital " + c + ": " + str(characteristics[c])
+	features[i] = similarity.evaluate(characteristics[c])
+	#calculate normalized erosion and append to correct index in features?
+	#print "FEATURES for capital " + c + ": " + str(features[i])
 #print characteristics
+
+with open(csvFile, 'w') as file:
+	writer = csv.writer(file)
+	#writer.writerows([capitals])
+	data = np.vstack((capitals, np.rot90(features)))
+	writer.writerows(data)
+print "Writing data to csv complete"
+
+correlate.main()
 
 '''with open(csvFile, 'w') as csvfile:
 	writer = csv.DictWriter(csvfile, fieldnames=capitals)
 	writer.writeheader()
-	writer.writerow()
+	for j in xrange(features.shape[0]): #(how many features per column)
+		writer.writerow()
 '''
 
 #uncomment below

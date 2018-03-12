@@ -1,6 +1,8 @@
 import numpy as np
 from stl import mesh
 import math
+from matplotlib import pyplot
+from mpl_toolkits import mplot3d
 
 SKIPLINES = 8
 
@@ -121,6 +123,10 @@ def transform_capital_onto_top(capitalNum, capital_mesh, dims):
                         [dims["maxx"],dims["maxy"],dims["minz"]],
                         [dims["maxx"],dims["maxy"],dims["maxz"]]])
       
+    #if capitalNum == "0261":
+        ##find surface normal of top plane: upper top face is on XY plane -- all surface points are at min z
+        #top_normal = np.cross(face_pts[2] - face_pts[0], face_pts[2] - face_pts[4])
+        #points_mid = np.array((face_pts[2] + face_pts[0] + face_pts[4]) / 3.0)
     if capitalNum == "0262":
         #find surface normal of top plane: upper top face is on XY plane -- all surface points are at max z
         top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
@@ -137,10 +143,10 @@ def transform_capital_onto_top(capitalNum, capital_mesh, dims):
         #find surface normal of top plane: upper top face is on XY plane -- all surface points are at max z
         top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
         points_mid = np.array((face_pts[5] + face_pts[1] + face_pts[7]) / 3.0)
-    #if capitalNum == "2281":
-        #find surface normal of top plane: upper top face is on XZ plane -- all surface points are at max y???
-        #top_normal = np.cross(face_pts[2] - face_pts[3], face_pts[2] - face_pts[6])
-        #points_mid = np.array((face_pts[2] + face_pts[3] + face_pts[6]) / 3.0)
+    if capitalNum == "2281":
+        #find surface normal of top plane: upper top face is on XZ plane -- all surface points are at max y
+        top_normal = np.cross(face_pts[2] - face_pts[3], face_pts[2] - face_pts[6])
+        points_mid = np.array((face_pts[2] + face_pts[3] + face_pts[6]) / 3.0)
     elif capitalNum == "2282":
         #find surface normal of top plane: upper top face is on XY plane -- all surface points are at max z
         top_normal = np.cross(face_pts[5] - face_pts[1], face_pts[5] - face_pts[7])
@@ -149,6 +155,12 @@ def transform_capital_onto_top(capitalNum, capital_mesh, dims):
         #find surface normal of top plane: upper top face is on XZ plane -- all surface points are at min y
         top_normal = np.cross(face_pts[0] - face_pts[1], face_pts[0] - face_pts[4])
         points_mid = np.array((face_pts[0] + face_pts[1] + face_pts[4]) / 3.0)
+    elif capitalNum == "2285":
+        #find surface normal of top plane: upper top face is on XY plane -- all surface points are at min z
+        top_normal = np.cross(face_pts[2] - face_pts[0], face_pts[2] - face_pts[4])
+        points_mid = np.array((face_pts[2] + face_pts[0] + face_pts[4]) / 3.0)
+
+    
 
     #Scalar product: make sure the top surface normal is pointing away from the capital center
     top_normal /= np.linalg.norm(top_normal)
@@ -235,7 +247,8 @@ def process_capital(capitalNum):
     capital_mesh.save(meshfilename) #save transformed version
     vertices_np, new_dims = get_capital_dimensions(capital_mesh.points, capital_mesh) 
     #create_plot(capital_mesh)
-    
+    #print new_dims['minz']
+    #print new_dims['maxz']
     width = (math.fabs(new_dims['minx'] - new_dims['maxx']), math.fabs(new_dims['miny'] - new_dims['maxy']))
     return vertices_np, {"volume": new_dims['volume'], "height": new_dims['maxz'], "width": width}   
 

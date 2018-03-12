@@ -51,8 +51,9 @@ def compare_slices(capitalNum, vertices, characteristics):
 	edgeSlopes = np.empty([4, numSlices-1, 2])#[[],[],[],[]] #instantiate to empty arrays
 	centers = np.empty([numSlices, 2])#[]
 	centerGradients = np.empty([numSlices-1, 2])
-	avgSideLengthsX = 0.0
+	avgSideLengthsX = 0.0 #add side lengths for each slice, then average over numSlides
 	avgSideLengthsY = 0.0
+	avgSideLengthsDiff = 0.0 #take difference bw x and y sides for each slice, average these differences total
 
 	for interval in sliceIntervals:
 		sliceDims.append(find_slice_dimensions(interval, vertices))
@@ -86,7 +87,7 @@ def compare_slices(capitalNum, vertices, characteristics):
 		#want to compare difference in avg lengths of x vs y widths for erosion
 		avgSideLengthsX += (sliceDims[i][1] - sliceDims[i][0]) #x_max - x_min
 		avgSideLengthsY += (sliceDims[i][3] - sliceDims[i][2]) #x_max - x_min
-		
+		avgSideLengthsDiff += math.fabs(math.fabs(sliceDims[i][1] - sliceDims[i][0]) - math.fabs(sliceDims[i][3] - sliceDims[i][2])) #difference bw side lengths
 
 	#slope between start and end slice, per corner:
 	sideAvgSlopes = (sideEdges[0][-1] - sideEdges[0][0]) / (sliceDist * numSlices) #NEED TO DIVIDE? I THINK SO, BC THIS IS A LINE... IF IT WERE A RATION IT WOULD NOT
@@ -97,7 +98,8 @@ def compare_slices(capitalNum, vertices, characteristics):
 	avgSideLengthsX /= numSlices
 	avgSideLengthsY /= numSlices
 	characteristics['avg slice side lengths'] = (avgSideLengthsX, avgSideLengthsY)
-
+	avgSideLengthsDiff /= numSlices
+	characteristics['avg side lengths diff'] = avgSideLengthsDiff
 	#print "SIDE AVG EDGE SLOPES: " + str(sideAvgSlopes)
 	characteristics['side avg edge slopes'] = sideAvgSlopes
 	#totalGradient /= (sliceDist * numSlices)
@@ -105,9 +107,8 @@ def compare_slices(capitalNum, vertices, characteristics):
 	#if I want top dimensions and not just area, restructure get_slice_interval briefly
 	
 	#evaluate how much the gradients differ to measure consistency of slope? erosion
-	avgAreaGradient = (areaGradients[-1] - areaGradients[0]) / (sliceDist * numSlices) #OR JUST NUMSLICES IF COMPARING VALUES FROM BW SLICES IN AREAGRADIENTS DIRECTLY!
+	avgAreaGradient = (sliceDims[-1][-1] - sliceDims[0][-1]) / (numSlices * sliceDist) #(areaGradients[-1] - areaGradients[0]) / (numSlices) #JUST NUMSLICES IF COMPARING VALUES FROM BW SLICES IN AREAGRADIENTS DIRECTLY!
 	#totalGradient += sliceDims[i][-1]
-	avgAreaGradient /= numSlices
 	characteristics['top area'] = sliceDims[0][-1]
 	#characteristics['slice areas'] = np.array(sliceDims)[:,-1] #do I need to store these?
 	characteristics['avg slice area'] = np.average(sliceDims[:,-1])
@@ -117,10 +118,13 @@ def compare_slices(capitalNum, vertices, characteristics):
 
 	centerAvgGradient = (centers[-1] - centers[0]) / (sliceDist * numSlices) #(centers[-1][0] - centers[0][0], centers[-1][1] - centers[0][1], centers[-1][2] - centers[0][2]) # (x,y,z) line of symmetry that goes through the center of the capital, out the top
 	# ^ Make the signs correct for direction
-	print "CENTER AVG SLOPE: " + str(centerAvgGradient)
+	#print "CENTER AVG GRADIENT: " + str(centerAvgGradient)
 	characteristics['avg center gradient'] = centerAvgGradient
 	characteristics['center gradients'] = centerGradients
 	#will use to see how much centerGradients[j] differs from centerAvgGradient
+
+	characteristics['top center'] = centers[0]
+	characteristics['bottom center'] = centers[-1]
 
 
 
