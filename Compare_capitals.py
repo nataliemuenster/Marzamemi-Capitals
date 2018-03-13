@@ -21,10 +21,12 @@ for i,c in enumerate(capitals):
 	#print "FEATURES for capital " + c + ": " + str(features[i])
 #print characteristics
 
+featuresNormalized = similarity.normalize_features(features)
+
 with open(csvFile, 'w') as file:
 	writer = csv.writer(file)
 	#writer.writerows([capitals])
-	data = np.vstack((capitals, np.rot90(features)))
+	data = np.vstack((capitals, np.transpose(featuresNormalized)))
 	writer.writerows(data)
 print "Writing data to csv complete"
 
