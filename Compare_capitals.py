@@ -14,39 +14,27 @@ features = np.zeros([len(capitals), len(similarity.getFeatureLabels())])
 for i,c in enumerate(capitals):
 	vertices, characteristics[c] = process.process_capital(c)
 	mesh_slices.compare_slices(c, vertices, characteristics[c])
-	#print "CHARACTERISTICS for capital " + c + ": " + str(characteristics[c])
 	features[i] = similarity.evaluate(characteristics[c])
-	#calculate normalized erosion and append to correct index in features?
-	#print "FEATURES for capital " + c + ": " + str(features[i])
-#print characteristics
 
-#MOVED TO PLOT FUNCTION IN SIMILARITY:
-#erosion_idx = similarity.getFeatureLabels().index('erosion')
-#erosionNormalized = similarity.normalizeSingleFeature(features[:, erosion_idx]) #only norm erosion here
-#features[:, erosion_idx] = erosionNormalized #don't want to normalize twice
+#similarity.plotFeatures(capitals, features)
 
-similarity.plotFeatures(capitals, features)
+#PCA
+featuresNormalizedPCA = similarity.preprocess_for_PCA(features)
+featuresPCA = similarity.PCA(featuresNormalizedPCA)
+similarity.plotPCA(capitals,featuresPCA)
 quit()
-
-featuresNormalized = similarity.preprocess_for_PCA(features)
-featuresPCA = similarity.PCA(featuresNormalized)
-#featuresNormalized = similarity.normalizeAllFeatures(features)
+featuresNormalized = similarity.normalizeAllFeatures(features)
 
 with open(csvFile, 'w') as file:
 	writer = csv.writer(file)
-	#writer.writerows([capitals])
-	data = np.vstack((capitals, np.transpose(featuresPCA)))
+	data = np.vstack((capitals, np.transpose(featuresNormalized)))
 	writer.writerows(data)
 print "Writing data to csv complete"
 
 correlate.main()
 
-'''with open(csvFile, 'w') as csvfile:
-	writer = csv.DictWriter(csvfile, fieldnames=capitals)
-	writer.writeheader()
-	for j in xrange(features.shape[0]): #(how many features per column)
-		writer.writerow()
-'''
+
+
 
 #uncomment below
 '''similarities = np.empty([len(capitals), len(capitals)])

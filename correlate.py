@@ -29,8 +29,8 @@ def main():
 		for j in range(n):
 			x = capitalMap[capitals[i]]
 			y = capitalMap[capitals[j]]
-			#corr = calculateCorrelation(x, y)
-			corr = evaluate.calculateSimilarity(np.array(x),np.array(y))
+			corr = calculateCorrelation(x, y)
+			#corr = evaluate.calculateSimilarity(np.array(x),np.array(y))
 			correlationMatrix[i][j] = corr
 		#quit()
 
